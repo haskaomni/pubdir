@@ -268,20 +268,74 @@ body::before {
 
 .preview-actions {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  top: 14px;
+  right: 14px;
   z-index: 4;
   display: flex;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
   margin: 0;
-  padding: 8px;
-  border: 1px solid rgba(255,255,255,.16);
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,.12);
   border-radius: 999px;
-  background: rgba(22, 19, 15, 0.62);
-  backdrop-filter: blur(16px);
+  background: rgba(22, 19, 15, 0.34);
+  opacity: .28;
+  transform: translateY(-2px);
+  backdrop-filter: blur(18px) saturate(1.2);
+  transition: opacity .18s ease, background .18s ease, transform .18s ease;
 }
-.preview-actions a { color: #fff5df; border-color: rgba(255,255,255,.2); text-decoration: none; padding: 10px 14px; }
+
+.preview:hover .preview-actions,
+.preview:focus-within .preview-actions,
+.preview-actions:hover {
+  background: rgba(22, 19, 15, 0.72);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.preview-actions a {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow: hidden;
+  padding: 0;
+  color: #fff5df;
+  border-color: rgba(255,255,255,.14);
+  text-decoration: none;
+  background: rgba(255,255,255,.06);
+  transition: width .18s ease, background .18s ease, transform .18s ease;
+}
+
+.preview-actions:hover a,
+.preview-actions:focus-within a {
+  width: 76px;
+}
+
+.preview-actions a:hover {
+  background: var(--accent);
+}
+
+.action-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.action-label {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-width .18s ease, opacity .18s ease;
+}
+
+.preview-actions:hover .action-label,
+.preview-actions:focus-within .action-label {
+  max-width: 44px;
+  opacity: 1;
+}
 
 .error { color: #ffb199; font-family: 'IBM Plex Mono', monospace; }
 
@@ -294,5 +348,5 @@ body::before {
   .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(210px, 0.45fr) minmax(0, 0.55fr); }
   .file-panel { border-right: 0; border-bottom: 1px solid var(--line); }
   .preview { padding: 12px; }
-  .preview-actions { top: 10px; left: 10px; }
+  .preview-actions { top: 10px; right: 10px; opacity: .7; }
 }
