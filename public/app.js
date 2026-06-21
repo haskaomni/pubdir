@@ -2,6 +2,8 @@ const state = {
   path: new URLSearchParams(location.search).get('path') || '',
   items: [],
   active: '',
+  parent: '',
+  isRoot: true,
 };
 
 const els = {
@@ -48,6 +50,8 @@ async function loadDirectory(nextPath = '') {
 }
 
 function renderDirectory(data) {
+  state.parent = data.parent;
+  state.isRoot = data.isRoot;
   els.crumb.textContent = `/${data.path}`.replace(/\/$/, '') || '/';
   els.backButton.disabled = data.isRoot;
   els.backButton.onclick = () => loadDirectory(data.parent);
@@ -56,8 +60,7 @@ function renderDirectory(data) {
 }
 
 function renderList() {
-  const query = els.search.value.trim().toLowerCase();
-  const items = state.items.filter((item) => item.name.toLowerCase().includes(query));
+  const items = visibleItems();
   els.fileList.innerHTML = items.map((item, index) => `
     <button class="file-row ${state.active === item.path ? 'active' : ''}" data-path="${escapeHtml(item.path)}" data-dir="${item.isDirectory}" style="animation-delay:${Math.min(index * 18, 240)}ms">
       <span class="icon">${icons[item.type] || icons.download}</span>
@@ -83,6 +86,47 @@ function setActivePath(path) {
   els.fileList.querySelectorAll('.file-row').forEach((row) => {
     row.classList.toggle('active', row.dataset.path === path);
   });
+}
+
+function visibleItems() {
+  const query = els.search.value.trim().toLowerCase();
+  return state.items.filter((item) => item.name.toLowerCase().includes(query));
+}
+
+function activeIndex(items = visibleItems()) {
+  return items.findIndex((item) => item.path === state.active);
+}
+
+function scrollActiveIntoView() {
+  els.fileList.querySelector('.file-row.active')?.scrollIntoView({ block: 'nearest' });
+}
+
+function selectItem(item, { open = false } = {}) {
+  if (!item) return;
+  if (item.isDirectory && open) {
+    loadDirectory(item.path);
+    return;
+  }
+  if (item.isDirectory) {
+    setActivePath(item.path);
+    scrollActiveIntoView();
+    return;
+  }
+  previewFile(item);
+  scrollActiveIntoView();
+}
+
+function moveSelection(delta) {
+  const items = visibleItems();
+  if (!items.length) return;
+  const current = activeIndex(items);
+  const next = current < 0 ? (delta > 0 ? 0 : items.length - 1) : Math.min(Math.max(current + delta, 0), items.length - 1);
+  selectItem(items[next]);
+}
+
+function openSelection() {
+  const items = visibleItems();
+  selectItem(items[activeIndex(items)] || items[0], { open: true });
 }
 
 function previewShell(item, body) {
@@ -139,6 +183,31 @@ function renderEmpty() {
 }
 
 els.search.addEventListener('input', renderList);
+document.addEventListener('keydown', (event) => {
+  if (event.target.closest('.preview-actions')) return;
+
+  if (event.target === els.search) {
+    if (event.key === 'Escape') els.search.blur();
+    return;
+  }
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    moveSelection(1);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    moveSelection(-1);
+  } else if (event.key === 'ArrowRight' || event.key === 'Enter') {
+    event.preventDefault();
+    openSelection();
+  } else if (event.key === 'ArrowLeft' && !state.isRoot) {
+    event.preventDefault();
+    loadDirectory(state.parent);
+  } else if (event.key === '/') {
+    event.preventDefault();
+    els.search.focus();
+  }
+});
 
 loadDirectory(state.path).catch((error) => {
   els.fileList.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
