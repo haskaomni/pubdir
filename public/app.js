@@ -78,9 +78,15 @@ function renderList() {
   });
 }
 
+function setActivePath(path) {
+  state.active = path;
+  els.fileList.querySelectorAll('.file-row').forEach((row) => {
+    row.classList.toggle('active', row.dataset.path === path);
+  });
+}
+
 function previewShell(item, body) {
-  state.active = item.path;
-  renderList();
+  setActivePath(item.path);
   els.preview.className = 'preview';
   els.preview.innerHTML = `
     ${body}
