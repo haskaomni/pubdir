@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pubdir</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="grain"></div>
+    <main class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">public directory relay</p>
+          <h1 id="rootName">pubdir</h1>
+        </div>
+        <div class="status-card">
+          <span class="pulse"></span>
+          <span>live preview</span>
+        </div>
+      </header>
+
+      <section class="toolbar">
+        <button id="backButton" class="button ghost" type="button">← Parent</button>
+        <div class="crumb" id="crumb">/</div>
+        <label class="search">
+          <span>Search</span>
+          <input id="searchInput" type="search" placeholder="Filter this directory" />
+        </label>
+      </section>
+
+      <section class="workspace">
+        <aside class="file-panel">
+          <div class="panel-head">
+            <span id="itemCount">0 items</span>
+            <span class="mono">read only</span>
+          </div>
+          <div id="fileList" class="file-list"></div>
+        </aside>
+
+        <section class="preview-panel">
+          <div id="preview" class="preview empty">
+            <div class="empty-mark">↯</div>
+            <h2>Select a file</h2>
+            <p>Images, video, audio, PDFs, Markdown, code, JSON, CSV, and plain text preview directly in the browser.</p>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

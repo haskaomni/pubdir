@@ -1,0 +1,47 @@
+{
+  "name": "pubdir",
+  "version": "0.1.0",
+  "description": "A beautiful local directory sharing server with previews and public tunnels.",
+  "type": "module",
+  "bin": {
+    "pubdir": "./src/cli.js"
+  },
+  "files": [
+    "src",
+    "public",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node src/cli.js",
+    "dev": "node src/cli.js --no-tunnel",
+    "check": "node --check src/cli.js && node --check src/server.js && node --check src/tunnel.js"
+  },
+  "keywords": [
+    "directory",
+    "share",
+    "cloudflare",
+    "tunnel",
+    "preview",
+    "static-server"
+  ],
+  "author": "haskaomni",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@fastify/static": "latest",
+    "fastify": "latest",
+    "mime-types": "latest",
+    "qrcode-terminal": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haskaomni/pubdir.git"
+  },
+  "homepage": "https://github.com/haskaomni/pubdir#readme",
+  "bugs": {
+    "url": "https://github.com/haskaomni/pubdir/issues"
+  }
+}
