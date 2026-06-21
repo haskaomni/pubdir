@@ -1,5 +1,6 @@
 import { createReadStream } from 'node:fs';
-import { lstat, readdir, realpath, stat } from 'node:fs/promises';
+import { timingSafeEqual } from 'node:crypto';
+import { lstat, readdir, realpath } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +11,23 @@ import mime from 'mime-types';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, '..', 'public');
 const textPreviewLimit = 512 * 1024;
+
+function safeEqual(left, right) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  if (leftBuffer.length !== rightBuffer.length) return false;
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function authMatches(header, auth) {
+  if (!auth || !header?.startsWith('Basic ')) return false;
+  const decoded = Buffer.from(header.slice('Basic '.length), 'base64').toString('utf8');
+  const separator = decoded.indexOf(':');
+  if (separator < 0) return false;
+  const username = decoded.slice(0, separator);
+  const password = decoded.slice(separator + 1);
+  return safeEqual(username, auth.username) && safeEqual(password, auth.password);
+}
 
 function insideRoot(root, target) {
   const relative = path.relative(root, target);
@@ -69,8 +87,16 @@ async function findFreePort(start = 4173, host = '127.0.0.1') {
   throw new Error('no free local port found');
 }
 
-export async function startServer({ root, host = '127.0.0.1', port }) {
+export async function startServer({ root, host = '127.0.0.1', port, auth = null }) {
   const app = fastify({ logger: false });
+
+  if (auth) {
+    app.addHook('onRequest', async (request, reply) => {
+      if (authMatches(request.headers.authorization, auth)) return;
+      reply.header('WWW-Authenticate', 'Basic realm="pubdir", charset="UTF-8"');
+      reply.code(401).send({ error: 'authentication required' });
+    });
+  }
 
   app.register(fastifyStatic, {
     root: publicDir,

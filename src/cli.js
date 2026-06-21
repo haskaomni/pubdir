@@ -5,9 +5,9 @@ import path from 'node:path';
 import process from 'node:process';
 import qrcode from 'qrcode-terminal';
 import { startServer } from './server.js';
-import { startCloudflared } from './tunnel.js';
+import { resolveCloudflared, startCloudflared } from './tunnel.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 
 function usage() {
   console.log(`pubdir ${VERSION}
@@ -20,16 +20,30 @@ Usage:
 Options:
   -p, --port <port>       Local port. Default: first free port from 4173
   -b, --bind <address>    Bind address. Default: 127.0.0.1
+  --auth <user:pass>      Require HTTP Basic Auth
   --no-tunnel             Only start local preview server
   --no-qr                 Do not print QR code
+  --no-install            Do not auto-download cloudflared when missing
   -h, --help              Show help
   -v, --version           Show version
 
 Examples:
   pubdir
   pubdir ~/Downloads
+  pubdir --auth guest:secret
   pubdir --no-tunnel --port 9000
 `);
+}
+
+function parseAuth(value) {
+  const separator = value.indexOf(':');
+  if (separator <= 0 || separator === value.length - 1) {
+    throw new Error('--auth must use the format user:pass');
+  }
+  return {
+    username: value.slice(0, separator),
+    password: value.slice(separator + 1),
+  };
 }
 
 function parseArgs(argv) {
@@ -39,6 +53,8 @@ function parseArgs(argv) {
     bind: '127.0.0.1',
     tunnel: true,
     qr: true,
+    autoInstall: true,
+    auth: process.env.PUBDIR_AUTH ? parseAuth(process.env.PUBDIR_AUTH) : null,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -57,6 +73,20 @@ function parseArgs(argv) {
     }
     if (arg === '--no-qr') {
       options.qr = false;
+      continue;
+    }
+    if (arg === '--no-install') {
+      options.autoInstall = false;
+      continue;
+    }
+    if (arg === '--auth') {
+      const value = argv[++i];
+      if (!value) throw new Error(`${arg} requires a value`);
+      options.auth = parseAuth(value);
+      continue;
+    }
+    if (arg.startsWith('--auth=')) {
+      options.auth = parseAuth(arg.slice('--auth='.length));
       continue;
     }
     if (arg === '-p' || arg === '--port') {
@@ -99,18 +129,29 @@ async function main() {
   }
 
   const realRoot = await realpath(root);
-  const server = await startServer({ root: realRoot, host: options.bind, port: options.port });
+  const server = await startServer({ root: realRoot, host: options.bind, port: options.port, auth: options.auth });
   const localUrl = `http://${options.bind}:${server.port}`;
 
   console.log('');
   console.log('pubdir is serving');
   console.log(`  Directory  ${realRoot}`);
   console.log(`  Local      ${localUrl}`);
+  if (options.auth) console.log(`  Auth       ${options.auth.username}:********`);
   console.log('');
 
   let tunnel;
   if (options.tunnel) {
+    const cloudflared = await resolveCloudflared({
+      autoInstall: options.autoInstall,
+      hooks: {
+        onHint(message) {
+          console.log(`  Tunnel     ${message}`);
+        },
+      },
+    });
+
     tunnel = startCloudflared(localUrl, {
+      bin: cloudflared,
       onUrl(url) {
         console.log(`  Public     ${url}`);
         if (options.qr) qrcode.generate(url, { small: true });
