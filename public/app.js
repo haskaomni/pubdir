@@ -5,7 +5,6 @@ const state = {
 };
 
 const els = {
-  rootName: document.querySelector('#rootName'),
   crumb: document.querySelector('#crumb'),
   backButton: document.querySelector('#backButton'),
   itemCount: document.querySelector('#itemCount'),
@@ -49,7 +48,6 @@ async function loadDirectory(nextPath = '') {
 }
 
 function renderDirectory(data) {
-  els.rootName.textContent = data.rootName;
   els.crumb.textContent = `/${data.path}`.replace(/\/$/, '') || '/';
   els.backButton.disabled = data.isRoot;
   els.backButton.onclick = () => loadDirectory(data.parent);
@@ -85,8 +83,6 @@ function previewShell(item, body) {
   renderList();
   els.preview.className = 'preview';
   els.preview.innerHTML = `
-    <p class="eyebrow">${escapeHtml(item.mime)}</p>
-    <h2>${escapeHtml(item.name)}</h2>
     ${body}
     <div class="preview-actions">
       <a class="button" href="${rawUrl(item.path)}" target="_blank" rel="noreferrer">Open raw</a>
@@ -132,8 +128,7 @@ function renderEmpty() {
   els.preview.className = 'preview empty';
   els.preview.innerHTML = `
     <div class="empty-mark">↯</div>
-    <h2>Select a file</h2>
-    <p>Images, video, audio, PDFs, Markdown, code, JSON, CSV, and plain text preview directly in the browser.</p>
+    <p>Select a file to preview images, video, audio, PDFs, Markdown, code, JSON, CSV, and plain text.</p>
   `;
 }
 
