@@ -33,7 +33,7 @@ npm exec --yes --package github:haskaomni/pubdir pubdir -- --no-tunnel
 For a pinned version:
 
 ```bash
-npx --yes github:haskaomni/pubdir#v0.2.4
+npx --yes github:haskaomni/pubdir#v0.2.5
 ```
 
 ## Options

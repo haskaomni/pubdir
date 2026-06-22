@@ -7,7 +7,7 @@ import qrcode from 'qrcode-terminal';
 import { startServer } from './server.js';
 import { resolveCloudflared, startCloudflared } from './tunnel.js';
 
-const VERSION = '0.2.4';
+const VERSION = '0.2.5';
 
 function usage() {
   console.log(`pubdir ${VERSION}

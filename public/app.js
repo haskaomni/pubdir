@@ -137,11 +137,9 @@ function previewShell(item, body) {
     <div class="preview-actions">
       <a class="button" href="${rawUrl(item.path)}" target="_blank" rel="noreferrer" aria-label="Open raw file" title="Open raw">
         <span class="action-icon">↗</span>
-        <span class="action-label">Raw</span>
       </a>
       <a class="button" href="${downloadUrl(item.path)}" aria-label="Download file" title="Download">
         <span class="action-icon">↓</span>
-        <span class="action-label">Save</span>
       </a>
     </div>
   `;
