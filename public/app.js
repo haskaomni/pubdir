@@ -135,11 +135,19 @@ function previewShell(item, body) {
   els.preview.innerHTML = `
     ${body}
     <div class="preview-actions">
-      <a class="button" href="${rawUrl(item.path)}" target="_blank" rel="noreferrer" aria-label="Open raw file" title="Open raw">
-        <span class="action-icon">↗</span>
+      <a class="button" href="${rawUrl(item.path)}" target="_blank" rel="noreferrer" aria-label="Open raw file">
+        <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 6h-6a2 2 0 0 0 -2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-6" />
+          <path d="M11 13l9 -9" />
+          <path d="M15 4h5v5" />
+        </svg>
       </a>
-      <a class="button" href="${downloadUrl(item.path)}" aria-label="Download file" title="Download">
-        <span class="action-icon">↓</span>
+      <a class="button" href="${downloadUrl(item.path)}" aria-label="Download file">
+        <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
+          <path d="M7 11l5 5l5 -5" />
+          <path d="M12 4l0 12" />
+        </svg>
       </a>
     </div>
   `;

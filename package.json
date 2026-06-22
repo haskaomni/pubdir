@@ -1,6 +1,6 @@
 {
   "name": "pubdir",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "A beautiful local directory sharing server with previews and public tunnels.",
   "type": "module",
   "bin": {

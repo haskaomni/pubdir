@@ -286,9 +286,9 @@ body::before {
 }
 
 .preview-actions a {
-  width: auto;
+  width: 30px;
   min-width: 0;
-  height: auto;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -303,13 +303,19 @@ body::before {
 }
 
 .preview-actions a:hover {
+  background: transparent;
   color: #ffd36f;
   transform: translateY(-1px);
 }
 
 .action-icon {
-  font-size: 20px;
-  line-height: 1;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .error { color: #ffb199; font-family: 'IBM Plex Mono', monospace; }
