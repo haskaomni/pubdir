@@ -4,6 +4,7 @@ const state = {
   active: '',
   parent: '',
   isRoot: true,
+  directories: new Map(),
 };
 
 const els = {
@@ -37,16 +38,31 @@ function prettyDate(value) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
 
-async function loadDirectory(nextPath = '') {
+function saveDirectoryState() {
+  state.directories.set(state.path, {
+    active: state.active,
+    query: els.search.value,
+    scrollTop: els.fileList.scrollTop,
+  });
+}
+
+async function loadDirectory(nextPath = '', { restore = true } = {}) {
+  saveDirectoryState();
   const response = await fetch(`/api/list?path=${encodeURIComponent(nextPath)}`);
   if (!response.ok) throw new Error(await response.text());
   const data = await response.json();
+  const snapshot = restore ? state.directories.get(data.path) : null;
   state.path = data.path;
   state.items = data.items;
-  state.active = '';
+  state.active = snapshot?.active || '';
+  els.search.value = snapshot?.query || '';
   history.replaceState(null, '', data.path ? `?path=${encodeURIComponent(data.path)}` : location.pathname);
   renderDirectory(data);
   renderEmpty();
+  requestAnimationFrame(() => {
+    els.fileList.scrollTop = snapshot?.scrollTop || 0;
+    if (snapshot?.active) setActivePath(snapshot.active);
+  });
 }
 
 function renderDirectory(data) {
@@ -75,8 +91,13 @@ function renderList() {
   els.fileList.querySelectorAll('.file-row').forEach((row) => {
     row.addEventListener('click', () => {
       const path = row.dataset.path;
-      if (row.dataset.dir === 'true') loadDirectory(path);
-      else previewFile(state.items.find((item) => item.path === path));
+      const item = state.items.find((entry) => entry.path === path);
+      if (row.dataset.dir === 'true') {
+        setActivePath(path);
+        loadDirectory(path);
+      } else {
+        previewFile(item);
+      }
     });
   });
 }
