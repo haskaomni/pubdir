@@ -60,8 +60,10 @@ async function loadDirectory(nextPath = '', { restore = true } = {}) {
   renderDirectory(data);
   renderEmpty();
   requestAnimationFrame(() => {
+    const items = visibleItems();
+    const initial = items.find((item) => item.path === snapshot?.active) || items.find((item) => !item.isDirectory) || items[0];
+    selectItem(initial);
     els.fileList.scrollTop = snapshot?.scrollTop || 0;
-    if (snapshot?.active) setActivePath(snapshot.active);
   });
 }
 
