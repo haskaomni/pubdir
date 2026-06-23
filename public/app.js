@@ -5,6 +5,7 @@ const state = {
   parent: '',
   isRoot: true,
   directories: new Map(),
+  previewToken: 0,
 };
 
 const els = {
@@ -80,7 +81,7 @@ function renderDirectory(data) {
 function renderList() {
   const items = visibleItems();
   els.fileList.innerHTML = items.map((item, index) => `
-    <button class="file-row ${state.active === item.path ? 'active' : ''}" data-path="${escapeHtml(item.path)}" data-dir="${item.isDirectory}" style="animation-delay:${Math.min(index * 18, 240)}ms">
+    <button class="file-row ${state.active === item.path ? 'active' : ''}" data-path="${escapeHtml(item.path)}" data-dir="${item.isDirectory}">
       <span class="icon">${icons[item.type] || icons.download}</span>
       <span>
         <span class="file-name">${escapeHtml(item.name)}</span>
@@ -94,12 +95,12 @@ function renderList() {
     row.addEventListener('click', () => {
       const path = row.dataset.path;
       const item = state.items.find((entry) => entry.path === path);
-      if (row.dataset.dir === 'true') {
-        setActivePath(path);
-        loadDirectory(path);
-      } else {
-        previewFile(item);
-      }
+      selectItem(item);
+    });
+
+    row.addEventListener('dblclick', () => {
+      const path = row.dataset.path;
+      if (row.dataset.dir === 'true') loadDirectory(path);
     });
   });
 }
@@ -131,7 +132,7 @@ function selectItem(item, { open = false } = {}) {
     return;
   }
   if (item.isDirectory) {
-    setActivePath(item.path);
+    previewDirectory(item);
     scrollActiveIntoView();
     return;
   }
@@ -152,8 +153,8 @@ function openSelection() {
   selectItem(items[activeIndex(items)] || items[0], { open: true });
 }
 
-function previewShell(item, body) {
-  setActivePath(item.path);
+function previewShell(item, body, { activePath = item.path } = {}) {
+  setActivePath(activePath);
   els.preview.className = 'preview';
   els.preview.innerHTML = `
     ${body}
@@ -176,40 +177,78 @@ function previewShell(item, body) {
   `;
 }
 
-async function previewFile(item) {
+function renderDirectoryPreviewMessage(item, message, className = '') {
+  setActivePath(item.path);
+  els.preview.className = `preview ${className}`.trim();
+  els.preview.innerHTML = `
+    <div class="empty-mark">${icons.folder}</div>
+    <p>${escapeHtml(message)}</p>
+  `;
+}
+
+async function previewDirectory(item) {
+  const token = ++state.previewToken;
+  renderDirectoryPreviewMessage(item, `Loading the first file in ${item.name}...`);
+
+  try {
+    const response = await fetch(`/api/list?path=${encodeURIComponent(item.path)}`);
+    if (!response.ok) throw new Error('Folder preview unavailable');
+    const data = await response.json();
+    if (token !== state.previewToken) return;
+
+    const firstFile = data.items.find((entry) => !entry.isDirectory);
+    if (!firstFile) {
+      renderDirectoryPreviewMessage(item, 'No files are available to preview in this folder.', 'empty');
+      return;
+    }
+
+    previewFile(firstFile, { activePath: item.path, token });
+  } catch (error) {
+    if (token !== state.previewToken) return;
+    renderDirectoryPreviewMessage(item, error.message, 'empty');
+  }
+}
+
+async function previewFile(item, options = {}) {
   if (!item) return;
+  const { activePath = item.path, token = ++state.previewToken } = options;
   if (item.type === 'image') {
-    previewShell(item, `<img class="preview-media" src="${rawUrl(item.path)}" alt="${escapeHtml(item.name)}" />`);
+    previewShell(item, `<img class="preview-media" src="${rawUrl(item.path)}" alt="${escapeHtml(item.name)}" />`, { activePath });
     return;
   }
   if (item.type === 'video') {
-    previewShell(item, `<video class="preview-media" src="${rawUrl(item.path)}" controls></video>`);
+    previewShell(item, `<video class="preview-media" src="${rawUrl(item.path)}" controls></video>`, { activePath });
     return;
   }
   if (item.type === 'audio') {
-    previewShell(item, `<audio class="preview-media" src="${rawUrl(item.path)}" controls></audio>`);
+    previewShell(item, `<audio class="preview-media" src="${rawUrl(item.path)}" controls></audio>`, { activePath });
     return;
   }
   if (item.type === 'pdf') {
-    previewShell(item, `<iframe class="preview-frame" src="${rawUrl(item.path)}" title="${escapeHtml(item.name)}"></iframe>`);
+    previewShell(item, `<iframe class="preview-frame" src="${rawUrl(item.path)}" title="${escapeHtml(item.name)}"></iframe>`, { activePath });
     return;
   }
   if (item.type === 'text') {
-    previewShell(item, '<pre class="code-box">Loading preview...</pre>');
+    previewShell(item, '<pre class="code-box">Loading preview...</pre>', { activePath });
     const box = els.preview.querySelector('.code-box');
     try {
       const response = await fetch(`/api/preview?path=${encodeURIComponent(item.path)}`);
       if (!response.ok) throw new Error('Preview unavailable');
-      box.textContent = await response.text();
+      if (token !== state.previewToken) return;
+      const text = await response.text();
+      if (token !== state.previewToken) return;
+      box.textContent = text;
     } catch (error) {
+      if (token !== state.previewToken) return;
       box.innerHTML = `<span class="error">${escapeHtml(error.message)}</span>`;
     }
     return;
   }
-  previewShell(item, '<p>This file type cannot be previewed yet, but it can be opened or downloaded.</p>');
+  previewShell(item, '<p>This file type cannot be previewed yet, but it can be opened or downloaded.</p>', { activePath });
 }
 
 function renderEmpty() {
+  state.previewToken += 1;
   els.preview.className = 'preview empty';
   els.preview.innerHTML = `
     <div class="empty-mark">↯</div>
