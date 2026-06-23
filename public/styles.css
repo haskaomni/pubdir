@@ -173,7 +173,6 @@ body::before {
 .file-row.active {
   border-color: var(--line);
   background: rgba(255,255,255,.38);
-  transform: translateX(4px);
 }
 
 .icon {
