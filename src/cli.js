@@ -21,6 +21,7 @@ Options:
   -p, --port <port>       Local port. Default: first free port from 4173
   -b, --bind <address>    Bind address. Default: 127.0.0.1
   --auth <user:pass>      Require HTTP Basic Auth
+  --raw                   Serve files directly like python -m http.server
   --no-tunnel             Only start local preview server
   --no-qr                 Do not print QR code
   --no-install            Do not auto-download cloudflared when missing
@@ -31,6 +32,7 @@ Examples:
   pubdir
   pubdir ~/Downloads
   pubdir --auth guest:secret
+  pubdir --raw --no-tunnel
   pubdir --no-tunnel --port 9000
 `);
 }
@@ -54,6 +56,7 @@ function parseArgs(argv) {
     tunnel: true,
     qr: true,
     autoInstall: true,
+    raw: false,
     auth: process.env.PUBDIR_AUTH ? parseAuth(process.env.PUBDIR_AUTH) : null,
   };
 
@@ -83,6 +86,10 @@ function parseArgs(argv) {
       const value = argv[++i];
       if (!value) throw new Error(`${arg} requires a value`);
       options.auth = parseAuth(value);
+      continue;
+    }
+    if (arg === '--raw') {
+      options.raw = true;
       continue;
     }
     if (arg.startsWith('--auth=')) {
@@ -129,13 +136,14 @@ async function main() {
   }
 
   const realRoot = await realpath(root);
-  const server = await startServer({ root: realRoot, host: options.bind, port: options.port, auth: options.auth });
+  const server = await startServer({ root: realRoot, host: options.bind, port: options.port, auth: options.auth, raw: options.raw });
   const localUrl = `http://${options.bind}:${server.port}`;
 
   console.log('');
   console.log('pubdir is serving');
   console.log(`  Directory  ${realRoot}`);
   console.log(`  Local      ${localUrl}`);
+  if (options.raw) console.log('  Mode       raw static files');
   if (options.auth) console.log(`  Auth       ${options.auth.username}:********`);
   console.log('');
 

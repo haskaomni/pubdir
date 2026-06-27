@@ -15,6 +15,7 @@ npx github:haskaomni/pubdir
 - Public URL through Cloudflare Tunnel
 - Auto-installs `cloudflared` when needed
 - Optional HTTP Basic Auth with `--auth user:pass`
+- Raw static mode with `--raw` for direct `index.html` serving
 - Search/filter inside the current directory
 - Read-only by default
 - Safe path resolution to keep requests inside the shared directory
@@ -26,6 +27,7 @@ npx github:haskaomni/pubdir
 npx github:haskaomni/pubdir
 npm exec --yes --package github:haskaomni/pubdir pubdir -- ~/Downloads
 npm exec --yes --package github:haskaomni/pubdir pubdir -- --auth guest:secret
+npm exec --yes --package github:haskaomni/pubdir pubdir -- --raw --no-tunnel
 npm exec --yes --package github:haskaomni/pubdir pubdir -- --port 9000
 npm exec --yes --package github:haskaomni/pubdir pubdir -- --no-tunnel
 ```
@@ -42,6 +44,7 @@ npx --yes github:haskaomni/pubdir#v0.2.8
 -p, --port <port>       Local port. Default: first free port from 4173
 -b, --bind <address>    Bind address. Default: 127.0.0.1
 --auth <user:pass>      Require HTTP Basic Auth
+--raw                   Serve files directly like python -m http.server
 --no-tunnel             Only start local preview server
 --no-qr                 Do not print QR code
 --no-install            Do not auto-download cloudflared when missing
@@ -54,6 +57,16 @@ You can also set auth with an environment variable:
 ```bash
 PUBDIR_AUTH=guest:secret npx github:haskaomni/pubdir
 ```
+
+## Raw static mode
+
+Use `--raw` when you want a plain static file server instead of the pubdir preview UI:
+
+```bash
+npx github:haskaomni/pubdir --raw --no-tunnel
+```
+
+In raw mode, `/` serves `index.html` or `index.htm` from the shared directory when present. If no index file exists, pubdir shows a simple directory listing, similar to `python -m http.server`.
 
 ## Public sharing
 

@@ -1,6 +1,6 @@
-import { createReadStream } from 'node:fs';
+import { constants, createReadStream } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
-import { lstat, readdir, realpath } from 'node:fs/promises';
+import { access, lstat, readdir, realpath } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -74,6 +74,84 @@ function displaySize(bytes) {
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function encodePathLink(relativePath, isDirectory = false) {
+  const encoded = relativePath
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return `/${encoded}${isDirectory && encoded ? '/' : ''}`;
+}
+
+async function firstExistingIndex(root, directory) {
+  for (const name of ['index.html', 'index.htm']) {
+    const candidate = path.join(directory, name);
+    try {
+      await access(candidate, constants.R_OK);
+      const target = await realpath(candidate);
+      if (!insideRoot(root, target)) continue;
+      const itemStat = await lstat(target);
+      if (itemStat.isFile()) return target;
+    } catch {
+      // Try the next common index filename.
+    }
+  }
+  return null;
+}
+
+async function renderDirectoryListing(root, target, requestPath) {
+  const entries = await readdir(target, { withFileTypes: true });
+  entries.sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name));
+
+  const current = publicPath(root, target);
+  const rows = [];
+  if (current) {
+    const parent = publicPath(root, path.dirname(target));
+    rows.push(`<li><a href="${encodePathLink(parent, true)}">../</a></li>`);
+  }
+
+  for (const entry of entries) {
+    const absolute = path.join(target, entry.name);
+    const item = await lstat(absolute);
+    const rel = publicPath(root, absolute);
+    const slash = item.isDirectory() ? '/' : '';
+    const size = item.isDirectory() ? '-' : displaySize(item.size);
+    rows.push(`<li><a href="${encodePathLink(rel, item.isDirectory())}">${escapeHtml(entry.name)}${slash}</a> <span>${escapeHtml(size)}</span></li>`);
+  }
+
+  const title = `Directory listing for /${current}`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body { color: #1f2933; font: 16px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 2rem; }
+    h1 { font-size: 1.25rem; }
+    ul { list-style: none; padding: 0; }
+    li { align-items: baseline; display: flex; gap: 1rem; padding: .2rem 0; }
+    a { color: #0b63ce; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    span { color: #6b7280; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <ul>${rows.join('\n')}</ul>
+</body>
+</html>`;
+}
+
 async function findFreePort(start = 4173, host = '127.0.0.1') {
   for (let port = start; port < start + 1000; port += 1) {
     const free = await new Promise((resolve) => {
@@ -87,7 +165,7 @@ async function findFreePort(start = 4173, host = '127.0.0.1') {
   throw new Error('no free local port found');
 }
 
-export async function startServer({ root, host = '127.0.0.1', port, auth = null }) {
+export async function startServer({ root, host = '127.0.0.1', port, auth = null, raw = false }) {
   const app = fastify({ logger: false });
 
   if (auth) {
@@ -98,13 +176,43 @@ export async function startServer({ root, host = '127.0.0.1', port, auth = null 
     });
   }
 
-  app.register(fastifyStatic, {
-    root: publicDir,
-    prefix: '/',
-    decorateReply: false,
-  });
+  if (raw) {
+    app.get('/*', async (request, reply) => {
+      const requestPath = request.params['*'] || '';
+      const { target, stat: itemStat } = await pathInfo(root, requestPath);
 
-  app.get('/api/list', async (request) => {
+      if (itemStat.isDirectory()) {
+        const pathname = new URL(request.raw.url, 'http://localhost').pathname;
+        if (!pathname.endsWith('/')) {
+          reply.redirect(`${pathname}/${request.url.includes('?') ? `?${request.url.split('?').slice(1).join('?')}` : ''}`);
+          return;
+        }
+
+        const indexFile = await firstExistingIndex(root, target);
+        if (indexFile) {
+          const indexStat = await lstat(indexFile);
+          reply.type(mime.lookup(indexFile) || 'text/html');
+          reply.header('Content-Length', String(indexStat.size));
+          return createReadStream(indexFile);
+        }
+
+        reply.type('text/html; charset=utf-8');
+        return renderDirectoryListing(root, target, requestPath);
+      }
+
+      reply.type(mime.lookup(target) || 'application/octet-stream');
+      reply.header('Content-Length', String(itemStat.size));
+      return createReadStream(target);
+    });
+  } else {
+    app.register(fastifyStatic, {
+      root: publicDir,
+      prefix: '/',
+      decorateReply: false,
+    });
+  }
+
+  if (!raw) app.get('/api/list', async (request) => {
     const currentPath = request.query.path || '';
     const { target, stat: itemStat } = await pathInfo(root, currentPath);
     if (!itemStat.isDirectory()) {
@@ -141,7 +249,7 @@ export async function startServer({ root, host = '127.0.0.1', port, auth = null 
     };
   });
 
-  app.get('/api/preview', async (request, reply) => {
+  if (!raw) app.get('/api/preview', async (request, reply) => {
     const currentPath = request.query.path || '';
     const { target, stat: itemStat } = await pathInfo(root, currentPath);
     if (itemStat.isDirectory()) {
@@ -161,7 +269,7 @@ export async function startServer({ root, host = '127.0.0.1', port, auth = null 
     return createReadStream(target);
   });
 
-  app.get('/raw/*', async (request, reply) => {
+  if (!raw) app.get('/raw/*', async (request, reply) => {
     const requestPath = request.params['*'] || '';
     const { target, stat: itemStat } = await pathInfo(root, requestPath);
     if (itemStat.isDirectory()) {
@@ -174,7 +282,7 @@ export async function startServer({ root, host = '127.0.0.1', port, auth = null 
     return createReadStream(target);
   });
 
-  app.get('/download/*', async (request, reply) => {
+  if (!raw) app.get('/download/*', async (request, reply) => {
     const requestPath = request.params['*'] || '';
     const { target, stat: itemStat } = await pathInfo(root, requestPath);
     if (itemStat.isDirectory()) {
@@ -188,7 +296,7 @@ export async function startServer({ root, host = '127.0.0.1', port, auth = null 
     return createReadStream(target);
   });
 
-  app.setNotFoundHandler((request, reply) => {
+  if (!raw) app.setNotFoundHandler((request, reply) => {
     if (request.raw.url.startsWith('/api/') || request.raw.url.startsWith('/raw/') || request.raw.url.startsWith('/download/')) {
       reply.code(404).send({ error: 'not found' });
       return;
