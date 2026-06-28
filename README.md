@@ -19,6 +19,7 @@ npx github:haskaomni/pubdir
 - Search/filter inside the current directory
 - Read-only by default
 - Safe path resolution to keep requests inside the shared directory
+- Terminal access logs for incoming requests
 - QR code for the public URL
 
 ## Usage

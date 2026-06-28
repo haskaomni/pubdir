@@ -12,6 +12,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, '..', 'public');
 const textPreviewLimit = 512 * 1024;
 
+function nowMs() {
+  return Number(process.hrtime.bigint() / 1000000n);
+}
+
 function safeEqual(left, right) {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);
@@ -72,6 +76,32 @@ function displaySize(bytes) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function headerFirst(value) {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+function clientIp(request) {
+  const cfIp = headerFirst(request.headers['cf-connecting-ip']);
+  if (cfIp) return cfIp;
+  const forwardedFor = headerFirst(request.headers['x-forwarded-for']);
+  if (forwardedFor) return forwardedFor.split(',')[0].trim();
+  return request.ip || request.raw.socket?.remoteAddress || '-';
+}
+
+function accessLogLine(request, reply, elapsedMs) {
+  const length = reply.getHeader('content-length') || '-';
+  return [
+    new Date().toISOString(),
+    clientIp(request),
+    request.method,
+    request.raw.url,
+    reply.statusCode,
+    `${elapsedMs}ms`,
+    length,
+  ].join(' ');
 }
 
 function escapeHtml(value) {
@@ -167,6 +197,15 @@ async function findFreePort(start = 4173, host = '127.0.0.1') {
 
 export async function startServer({ root, host = '127.0.0.1', port, auth = null, raw = false }) {
   const app = fastify({ logger: false });
+
+  app.addHook('onRequest', async (request) => {
+    request.accessLogStart = nowMs();
+  });
+
+  app.addHook('onResponse', async (request, reply) => {
+    const elapsedMs = Math.max(0, nowMs() - (request.accessLogStart || nowMs()));
+    console.log(accessLogLine(request, reply, elapsedMs));
+  });
 
   if (auth) {
     app.addHook('onRequest', async (request, reply) => {
